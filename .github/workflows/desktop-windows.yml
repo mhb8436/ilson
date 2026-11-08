@@ -38,12 +38,18 @@ jobs:
         working-directory: apps/desktop
         run: pnpm dist:win
 
-      # 설치본 내부 실행 파일로 샘플 업무 한 건을 끝까지 처리한다.
-      - name: End-to-end check on packaged app
+      # 설치 파일을 무인 설치(사용자 단위)하고, 설치된 실행 파일을 시스템 PATH만 있는 환경에서 실행해
+      # 샘플 업무 한 건을 끝까지 처리한다. 앱이 PC의 Node 등 다른 프로그램에 기대면 여기서 실패한다.
+      - name: Install with setup exe and run end-to-end check
         working-directory: apps/desktop
         shell: pwsh
         run: |
-          $env:ILSON_APP_EXE = (Resolve-Path "release/win-unpacked/Ilson.exe").Path
+          $setup = (Get-ChildItem release/Ilson-Setup-*.exe | Select-Object -First 1).FullName
+          Start-Process -FilePath $setup -ArgumentList "/S" -Wait
+          $exe = Join-Path $env:LOCALAPPDATA "Programs\Ilson\Ilson.exe"
+          if (-not (Test-Path $exe)) { Get-ChildItem (Join-Path $env:LOCALAPPDATA "Programs") -Recurse -Depth 1; throw "설치된 실행 파일이 없습니다: $exe" }
+          Get-ChildItem (Split-Path $exe) | Select-Object Name, Length
+          $env:ILSON_APP_EXE = $exe
           node e2e/smoke.mjs e2e-shots
 
       - name: Upload installers

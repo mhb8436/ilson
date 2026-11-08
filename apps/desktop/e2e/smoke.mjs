@@ -34,11 +34,30 @@ const modelUrl = `http://127.0.0.1:${server.address().port}`;
 const userData = await mkdtemp(path.join(os.tmpdir(), "ilson-e2e-"));
 // ILSON_APP_EXE를 주면 설치본(패키징된 실행 파일)을 시험한다.
 const packaged = process.env.ILSON_APP_EXE;
+
+/**
+ * 설치본 시험은 담당자 PC와 같은 조건으로 돌린다. 개발 도구(Node, Python, pnpm)가 보이지 않도록
+ * 운영체제 기본 변수만 넘기고 PATH는 시스템 폴더로 줄인다. 앱이 PC에 깔린 런타임에 기대면 여기서 실패한다.
+ */
+function bareEnv() {
+  const keep =
+    process.platform === "win32"
+      ? ["SystemRoot", "SystemDrive", "windir", "TEMP", "TMP", "USERPROFILE", "USERNAME", "APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles", "HOMEDRIVE", "HOMEPATH", "COMPUTERNAME", "ComSpec"]
+      : ["HOME", "USER", "DISPLAY", "XAUTHORITY", "TMPDIR", "XDG_RUNTIME_DIR"];
+  const env = Object.fromEntries(keep.filter((k) => process.env[k] !== undefined).map((k) => [k, process.env[k]]));
+  env.PATH =
+    process.platform === "win32"
+      ? [`${process.env.SystemRoot}\\System32`, process.env.SystemRoot].join(";")
+      : "/usr/bin:/bin";
+  return env;
+}
+
 const app = await electron.launch({
   executablePath: packaged ?? createRequire(path.join(appDir, "package.json"))("electron"),
   args: packaged ? ["--no-sandbox"] : [appDir, "--no-sandbox"],
-  env: { ...process.env, ILSON_USER_DATA: userData, LANG: "ko_KR.UTF-8" },
+  env: { ...(packaged ? bareEnv() : process.env), ILSON_USER_DATA: userData, LANG: "ko_KR.UTF-8" },
 });
+if (packaged) console.log("설치본을 최소 환경(시스템 PATH만)으로 실행했습니다.");
 const win = await app.firstWindow();
 await win.setViewportSize({ width: 1360, height: 860 });
 const shot = (name) => win.screenshot({ path: path.join(shots, `${name}.png`) });
