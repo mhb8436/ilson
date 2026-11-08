@@ -1,0 +1,10 @@
+{
+  "templateId": "weekly-report-v1",
+  "sheetName": "주간보고",
+  "headerRow": 1,
+  "deptColumn": "부서",
+  "keyColumns": ["과제ID"],
+  "requiredColumns": ["과제명", "담당자", "진행률(%)"],
+  "compareColumns": ["담당자", "진행률(%)", "예산집행액(천원)"],
+  "numericColumns": ["진행률(%)", "예산집행액(천원)"]
+}

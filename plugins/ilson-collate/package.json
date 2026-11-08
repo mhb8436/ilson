@@ -1,0 +1,36 @@
+{
+  "name": "@ilson/collate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "주간보고 취합 대조 엔진: 제출 명단, 지난주 확정본, 이번 주 파일을 결정적 코드로 대조한다",
+  "license": "UNLICENSED",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "ilson-collate": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "collate": "tsx src/cli.ts",
+    "fixtures": "tsx scripts/make-fixtures.ts ../../fixtures/weekly-report"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "iconv-lite": "0.7.3",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "_comment": "사람이 직접 작성한 정답표. make-fixtures.ts에 넣은 결함과 1:1로 대응한다. 엔진 출력에서 생성하지 말 것.",
+  "week": "2026-W45",
+  "departments": {
+    "D01": "submitted",
+    "D02": "submitted",
+    "D03": "submitted",
+    "D04": "missing",
+    "D05": "unreadable",
+    "D06": "submitted",
+    "D07": "not_required"
+  },
+  "findings": [
+    { "type": "value_changed", "dept": "D01", "file": "기획조정실_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 2, "column": "진행률(%)", "key": "P-0101", "before": 40, "after": 55 },
+    { "type": "value_changed", "dept": "D01", "file": "기획조정실_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 2, "column": "예산집행액(천원)", "key": "P-0101", "before": 12000, "after": 15000 },
+    { "type": "required_empty", "dept": "D02", "file": "운영지원과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 2, "column": "담당자", "key": "P-0201" },
+    { "type": "value_changed", "dept": "D02", "file": "운영지원과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 3, "column": "진행률(%)", "key": "P-0202", "before": 30, "after": 45 },
+    { "type": "duplicate_row", "dept": "D02", "file": "운영지원과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 4, "key": "P-0202", "relatedRow": 3, "exactDuplicate": true },
+    { "type": "invalid_number", "dept": "D03", "file": "정보화담당관_주간보고_2026-W45.csv", "sheet": null, "row": 2, "column": "진행률(%)", "key": "P-0301" },
+    { "type": "value_changed", "dept": "D03", "file": "정보화담당관_주간보고_2026-W45.csv", "sheet": null, "row": 3, "column": "담당자", "key": "P-0302", "before": "정수진", "after": "문가영" },
+    { "type": "submission_missing", "dept": "D04" },
+    { "type": "sheet_missing", "dept": "D05", "file": "홍보담당관_주간보고_2026-W45.xlsx" },
+    { "type": "row_removed", "dept": "D06", "file": "2026-W44_주간보고_확정본.xlsx", "sheet": "주간보고", "row": 12, "key": "P-0603" },
+    { "type": "value_changed", "dept": "D06", "file": "해양안전과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 2, "column": "진행률(%)", "key": "P-0601", "before": 35, "after": 40 },
+    { "type": "dept_mismatch", "dept": "D06", "file": "해양안전과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 3, "column": "부서", "key": "P-0602" },
+    { "type": "duplicate_row", "dept": "D06", "file": "해양안전과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 4, "key": "P-0601", "relatedRow": 2, "exactDuplicate": false },
+    { "type": "row_added", "dept": "D06", "file": "해양안전과_주간보고_2026-W45.xlsx", "sheet": "주간보고", "row": 5, "key": "P-0604" },
+    { "type": "unknown_file", "dept": null, "file": "참고자료_메모.xlsx" }
+  ]
+}

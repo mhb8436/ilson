@@ -1,0 +1,10 @@
+{
+  "package": "openclaw",
+  "version": "2026.11.1",
+  "gitRepository": "https://github.com/openclaw/openclaw",
+  "gitTag": "v2026.11.1",
+  "gitCommit": "4ffdd2047d192dd65554de3c8c46c0e0197c6e2a",
+  "license": "MIT",
+  "pinnedAt": "2026-11-08",
+  "notes": "npm latest 기준. GitHub 태그 v2026.11.2는 npm에 미배포 상태라 채택하지 않음. 버전 변경 시 회귀 시험과 보안 시험을 다시 수행한다."
+}
