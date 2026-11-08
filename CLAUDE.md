@@ -11,6 +11,12 @@
 - 포크하지 않는다. 버전은 `engine/openclaw.pin.json`에 고정하고, 크래프틱 기능은 플러그인과 별도 앱으로 구현한다.
 - 버전을 올릴 때는 회귀 시험과 보안 시험을 다시 수행하고 핀 파일의 커밋 해시를 함께 갱신한다.
 
+## 배포 형태
+- 1차는 담당자 Windows PC 단독 실행 파일(`apps/desktop`, Electron). 사용자는 GUI만 쓴다.
+- 모델은 기관 GPU 서버(OpenAI 호환 API)에만 연결한다. 화면(렌더러)에서 네트워크 요청을 하지 않는다.
+- 화면에 새 기능을 열 때는 `apps/desktop/src/shared/api.ts` 목록에 추가하고, 메인 프로세스에서 입력을 검증한다.
+- 화면 변경 후: `pnpm --filter @ilson/desktop build` 다음 `xvfb-run -a node apps/desktop/e2e/smoke.mjs <폴더>`.
+
 ## 코드
 - TypeScript ESM, strict. `any` 금지.
 - 시험: `pnpm test` (vitest). 정답표(`fixtures/**/expected.json`)는 사람이 작성하며 엔진 출력에서 생성하지 않는다.

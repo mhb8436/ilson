@@ -1,0 +1,64 @@
+name: desktop-windows
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm 버전은 package.json의 packageManager를 따른다.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # 대조 엔진과 서비스 시험을 Windows 경로, 한글 파일명 환경에서 돌린다.
+      - name: Test
+        run: pnpm test
+
+      - name: Build installer and portable exe
+        working-directory: apps/desktop
+        run: pnpm dist:win
+
+      # 설치본 내부 실행 파일로 샘플 업무 한 건을 끝까지 처리한다.
+      - name: End-to-end check on packaged app
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $env:ILSON_APP_EXE = (Resolve-Path "release/win-unpacked/Ilson.exe").Path
+          node e2e/smoke.mjs e2e-shots
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ilson-windows-x64
+          path: |
+            apps/desktop/release/Ilson-Setup-*.exe
+            apps/desktop/release/Ilson-Portable-*.exe
+          if-no-files-found: error
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots-windows
+          path: apps/desktop/e2e-shots
+          if-no-files-found: ignore

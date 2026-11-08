@@ -1,0 +1,42 @@
+appId: kr.craftic.ilson
+productName: Ilson
+copyright: Copyright (c) Craftic
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+  - package.json
+extraResources:
+  - from: ../../fixtures/weekly-report
+    to: samples/weekly-report
+    filter:
+      - "**/*"
+      - "!expected.json"
+  - from: ../../THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  executableName: Ilson
+# 관리자 권한 없이 사용자 폴더에 설치한다(공공기관 PC는 대부분 관리자 권한이 없다).
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 일손
+  uninstallDisplayName: 일손 (크래프틱 업무비서)
+  artifactName: Ilson-Setup-${version}-x64.${ext}
+  installerLanguages: [ko_KR]
+  language: "1042"
+portable:
+  artifactName: Ilson-Portable-${version}-x64.${ext}
+publish: null
