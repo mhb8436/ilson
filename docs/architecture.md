@@ -47,9 +47,32 @@
   업무대장은 덧붙이기만 하는 JSONL에 해시 사슬을 건다. 1차 규모에서는 SQLite 같은 네이티브 모듈 없이 충분하고
   설치본 빌드가 단순해진다.
 - 자동 업데이트는 끈다(망분리). 업데이트는 검증한 설치 파일을 반입해 덮어 설치한다.
-- OpenClaw 내장은 보류했다. npm 패키지만 약 275MB이고, 1차 업무(대조, 문안 다듬기)는 에이전트 도구 없이 끝난다.
-  회신 초안(자료 검색), 예약 실행처럼 도구 호출이 필요한 업무를 넣을 때 Windows 네이티브 Gateway를 앱에 내장해
-  127.0.0.1 전용, 읽기 전용 모드로 붙인다. 그 전까지 모델 호출 경로는 `ModelClient` 하나로 둔다.
+## 2026-11-08 OpenClaw 내장 (보류 결정 철회)
+
+- 설치 파일 하나에 OpenClaw 2026.11.1(`engine/openclaw.pin.json`)을 함께 넣는다. 담당자는 따로 설치하지 않는다.
+- 실행: 일손이 시작될 때 Electron 실행 파일을 Node로 써서(`ELECTRON_RUN_AS_NODE=1`, Electron 44 내장 Node 24.22)
+  `openclaw gateway run`을 하위 프로세스로 띄우고, 종료할 때 프로세스 묶음째 끈다(Windows `taskkill /T`).
+- 연결: 127.0.0.1의 빈 포트, 실행마다 새로 만드는 토큰. 일손은 게이트웨이의 OpenAI 호환 `/v1/chat/completions`
+  (`model: openclaw/default`)를 부르고, 게이트웨이가 기관 GPU 서버(`models.providers.agency`)를 부른다.
+- 엔진 설정(`packages/service/src/engine.ts`의 `buildEngineConfig`):
+  `tools.profile=minimal` + `gateway` 도구 차단(도구 없음), `models.mode=replace`, `models.catalogRefresh.enabled=false`,
+  `plugins.slots.memory=none`, `agents.defaults.skipBootstrap=true`. 환경변수로 `OPENCLAW_OFFLINE`, `OPENCLAW_NO_AUTO_UPDATE`,
+  `OPENCLAW_DISABLE_BONJOUR`, `OPENCLAW_SKIP_CHANNELS`를 켜고, 상태 폴더를 `%APPDATA%\Ilson\engine`으로 분리한다.
+- API 키는 설정 파일에 쓰지 않고 `${ILSON_MODEL_API_KEY}` 참조만 둔 뒤 하위 프로세스 환경변수로만 넘긴다.
+- 엔진이 준비되지 않으면 AI 다듬기는 실패로 알리고, 기관 서버로 직접 우회하지 않는다(경로를 하나로 유지).
+- 패키지는 `apps/desktop/engine-runtime`의 lockfile로 고정하고 `npm ci --omit=dev --ignore-scripts`로 설치한다.
+  설치본에는 asar 밖 `resources/engine/node_modules`로 들어간다. 포함 패키지와 라이선스 목록은
+  `resources/engine/ENGINE_LICENSES.txt`로 함께 넣는다.
+- 크기: 설치 후 약 820MB(Linux 기준, 엔진 약 550MB). 이 때문에 무설치 실행 파일(portable)은 뺐다.
+  실행할 때마다 임시 폴더에 전부 풀어야 해서 느리다.
+
+### 폐쇄망 시험 결과 (Linux, 루프백만 있는 네트워크 네임스페이스)
+
+- 엔진 기동, 토큰 없는 요청 거부(401), 모델 서버 호출, 종료 후 프로세스 정리 모두 정상.
+- 외부 접속 시도는 DNS 조회 하나만 남았다: `clawhub.ai`(OpenClaw 공식 플러그인 목록 확인). 실패하면 설치본에 들어 있는
+  목록으로 대신하므로 기능에는 영향이 없다. `OPENCLAW_CLAWHUB_URL`로는 막히지 않는 경로라 기관 DNS 기록에 남을 수 있다.
+  보안성 검토 자료에 적고, 다음 버전에서 막는 설정이나 플러그인 목록 경로를 찾는다.
+- 엔진 메모리는 약 1.1GB(RSS)다. 업무 PC 사양(8GB 이상 권장)을 첫 고객과 확인한다.
 
 ## 다음 작업
 
@@ -57,4 +80,5 @@
 2. 같은 업무를 다음 주(W46) 자료로 재실행: 저장한 비교 기준 재사용, 확정본 자동 생성, 동일 예약 중복 실행 방지.
 3. 예약 업무 화면과 트레이 상주(놓친 예약 처리 포함).
 4. 실제 소형 모델(Qwen3 4B)로 문안 다듬기 품질과 근거 표기 검사 통과율 측정.
-5. 회의 후속 조치표, 회신 초안. 이때 OpenClaw 내장 여부를 다시 판단한다.
+5. 회의 후속 조치표, 회신 초안. 내장 OpenClaw에 읽기 전용 도구를 업무별 작업 폴더로 열어 쓴다.
+6. 엔진 크기 줄이기: 1차 업무에 쓰지 않는 의존성(브라우저 자동화, 채널 등) 제외 가능 여부 시험.

@@ -12,8 +12,10 @@
     "build": "pnpm build:main && pnpm build:renderer",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "pnpm build && electron .",
-    "dist:win": "pnpm build && electron-builder --win --x64 --publish never",
-    "e2e": "node e2e/smoke.mjs"
+    "dist:win": "pnpm engine:install && pnpm build && electron-builder --win --x64 --publish never",
+    "e2e": "node e2e/smoke.mjs",
+    "engine:install": "node scripts/install-engine.mjs",
+    "dist:dir": "pnpm engine:install && pnpm build && electron-builder --dir --publish never"
   },
   "devDependencies": {
     "@ilson/collate": "workspace:*",

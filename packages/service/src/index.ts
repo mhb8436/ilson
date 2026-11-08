@@ -1,4 +1,14 @@
-export { IlsonService, type SecretBox, type ServiceOptions } from "./service.js";
+export { IlsonService, type EngineLink, type SecretBox, type ServiceOptions } from "./service.js";
+export {
+  buildEngineConfig,
+  EngineManager,
+  ENGINE_PROVIDER_ID,
+  type EngineEndpoint,
+  type EngineManagerOptions,
+  type EngineModelSettings,
+  type EngineState,
+  type EngineStatus,
+} from "./engine.js";
 export { Ledger, sha256, type LedgerEntry, type LedgerAction } from "./ledger.js";
 export {
   ModelClient,

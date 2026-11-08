@@ -16,12 +16,20 @@ extraResources:
       - "!expected.json"
   - from: ../../THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
+  # OpenClaw 실행 엔진. 하위 프로세스가 직접 읽으므로 asar 밖에 둔다.
+  - from: engine-runtime/node_modules
+    to: engine/node_modules
+    filter:
+      - "**/*"
+      - "!**/*.map"
+      - "!**/*.d.ts"
+      - "!**/*.d.mts"
+  - from: engine-runtime/ENGINE_LICENSES.txt
+    to: engine/ENGINE_LICENSES.txt
 asar: true
 win:
   target:
     - target: nsis
-      arch: [x64]
-    - target: portable
       arch: [x64]
   executableName: Ilson
 # 관리자 권한 없이 사용자 폴더에 설치한다(공공기관 PC는 대부분 관리자 권한이 없다).
@@ -37,6 +45,4 @@ nsis:
   artifactName: Ilson-Setup-${version}-x64.${ext}
   installerLanguages: [ko_KR]
   language: "1042"
-portable:
-  artifactName: Ilson-Portable-${version}-x64.${ext}
 publish: null

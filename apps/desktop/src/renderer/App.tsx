@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import type { EngineState } from "@ilson/service";
 import { api } from "./api";
+import { ENGINE_STATE_LABEL } from "./labels";
 import { HomeScreen } from "./screens/Home";
 import { JobScreen } from "./screens/Job";
 import { LedgerScreen } from "./screens/Ledger";
@@ -28,18 +30,25 @@ const TABS: { name: Route["name"]; label: string }[] = [
 export function App() {
   const [route, setRoute] = useState<Route>({ name: "home" });
   const [pending, setPending] = useState(0);
-  const [modelReady, setModelReady] = useState<boolean | null>(null);
+  const [engineState, setEngineState] = useState<EngineState | null>(null);
 
   const refreshBadges = useCallback(async () => {
     const items = await api.listReviewItems();
     setPending(items.filter((i) => i.status === "pending").length);
-    const s = await api.getSettings();
-    setModelReady(!!s.model);
+    setEngineState((await api.engineStatus()).state);
   }, []);
 
   useEffect(() => {
     void refreshBadges();
   }, [route, refreshBadges]);
+
+  // 실행 엔진은 뒤에서 시작하므로 상태를 주기적으로 확인한다.
+  useEffect(() => {
+    const t = setInterval(() => {
+      void api.engineStatus().then((s) => setEngineState(s.state));
+    }, 1500);
+    return () => clearInterval(t);
+  }, []);
 
   const navigate: Navigate = (r) => setRoute(r);
   const active = route.name === "job" ? "home" : route.name;
@@ -62,8 +71,8 @@ export function App() {
             </button>
           ))}
         </nav>
-        <div className={`model-state ${modelReady ? "ok" : "warn"}`}>
-          {modelReady === null ? "" : modelReady ? "모델 서버 설정됨" : "모델 서버 미설정"}
+        <div className={`model-state ${engineState === "ready" ? "ok" : engineState === "starting" ? "" : "warn"}`}>
+          {engineState ? ENGINE_STATE_LABEL[engineState] : ""}
         </div>
       </header>
       <main className="content">

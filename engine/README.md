@@ -1,6 +1,8 @@
 # 실행 엔진 (OpenClaw)
 
 `openclaw.pin.json`에 고정한 공개 릴리스를 그대로 사용한다. 이 저장소에는 OpenClaw 소스를 넣지 않는다.
+설치본에는 `apps/desktop/engine-runtime`의 lockfile대로 설치한 패키지가 들어간다(`pnpm --filter @ilson/desktop engine:install`).
+일손이 실행하는 방식과 설정은 `docs/architecture.md`의 "OpenClaw 내장" 절을 따른다.
 
 - npm: `openclaw@2026.11.1` (2026-11-08 기준 npm `latest`)
 - git: `openclaw/openclaw` 태그 `v2026.11.1`, 커밋 `4ffdd2047d192dd65554de3c8c46c0e0197c6e2a`

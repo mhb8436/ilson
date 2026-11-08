@@ -2,6 +2,7 @@
 import type {
   CollateJobInput,
   ConnectionTestResult,
+  EngineStatus,
   JobDetail,
   JobListItem,
   LedgerEntry,
@@ -33,6 +34,8 @@ export interface IlsonApi {
   saveModelSettings(input: ModelSettingsInput): Promise<Settings>;
   saveDefaults(defaults: Settings["defaults"]): Promise<Settings>;
   testModel(input?: ModelSettingsInput): Promise<ConnectionTestResult>;
+  engineStatus(): Promise<EngineStatus>;
+  restartEngine(): Promise<EngineStatus>;
   pickFile(opts: { title: string; filters: { name: string; extensions: string[] }[] }): Promise<string | null>;
   pickFolder(opts: { title: string }): Promise<string | null>;
   createCollateJob(input: CollateJobInput): Promise<JobDetail>;
@@ -56,6 +59,8 @@ export const API_METHODS = [
   "saveModelSettings",
   "saveDefaults",
   "testModel",
+  "engineStatus",
+  "restartEngine",
   "pickFile",
   "pickFolder",
   "createCollateJob",

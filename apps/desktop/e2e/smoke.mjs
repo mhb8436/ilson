@@ -14,18 +14,36 @@ const appDir = path.resolve(here, "..");
 const shots = path.resolve(process.argv[2] ?? path.join(appDir, "e2e-shots"));
 await mkdir(shots, { recursive: true });
 
-// 기관 GPU 서버 대역: OpenAI 호환 API. 받은 항목을 그대로 살려 정중한 문안으로 돌려준다.
+// 기관 GPU 서버 대역: OpenAI 호환 API. 일손은 내장 OpenClaw를 거쳐 이 서버를 부른다.
+// 받은 보완 항목을 그대로 살려 정중한 문안으로 돌려준다.
+const modelRequests = [];
+const textOf = (c) => (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => p?.text ?? "").join("\n") : "");
 const server = http.createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
   req.on("end", () => {
     res.setHeader("content-type", "application/json");
     if (req.url === "/v1/models") return res.end(JSON.stringify({ data: [{ id: "qwen3:4b" }] }));
-    const prompt = JSON.parse(body).messages.at(-1).content;
-    const to = /수신: (.+)/.exec(prompt)?.[1] ?? "";
-    const items = prompt.split("\n").filter((l) => /^\d+\. /.test(l));
+    const parsed = JSON.parse(body);
+    const all = parsed.messages.map((m) => textOf(m.content)).join("\n");
+    // 일손이 직접 부르면 일손의 지시문만 오고, OpenClaw를 거치면 OpenClaw 에이전트 프롬프트가 붙는다.
+    modelRequests.push({ url: req.url, model: parsed.model, viaOpenClaw: all.includes("OpenClaw") });
+    // OpenClaw가 붙이는 시스템 프롬프트에도 번호 목록이 있을 수 있어, '수신:' 뒤의 줄만 쓴다.
+    const prompt = parsed.messages.map((m) => textOf(m.content)).join("\n");
+    const at = prompt.lastIndexOf("수신: ");
+    const tail = at >= 0 ? prompt.slice(at) : "";
+    const to = /수신: (.+)/.exec(tail)?.[1] ?? "";
+    const items = tail.split("\n").filter((l) => /^\d+\. /.test(l));
     const text = `${to} 담당자님께\n\n이번 주 주간보고를 취합하는 과정에서 아래 사항이 확인되어 보완을 요청드립니다.\n\n${items.join("\n")}\n\n바쁘신 중에 번거롭게 해 드려 죄송합니다. 수정본을 같은 폴더에 올려 주시면 다시 취합하겠습니다.`;
-    res.end(JSON.stringify({ model: "qwen3:4b", choices: [{ message: { content: `<think>x</think>${text}` } }] }));
+    const content = `<think>x</think>${text}`;
+    if (parsed.stream) {
+      res.setHeader("content-type", "text/event-stream");
+      res.write(`data: ${JSON.stringify({ model: "qwen3:4b", choices: [{ index: 0, delta: { role: "assistant", content }, finish_reason: null }] })}\n\n`);
+      res.write(`data: ${JSON.stringify({ model: "qwen3:4b", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 } })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      return res.end();
+    }
+    res.end(JSON.stringify({ model: "qwen3:4b", choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }] }));
   });
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
@@ -60,6 +78,7 @@ const app = await electron.launch({
 if (packaged) console.log("설치본을 최소 환경(시스템 PATH만)으로 실행했습니다.");
 const win = await app.firstWindow();
 await win.setViewportSize({ width: 1360, height: 860 });
+win.setDefaultTimeout(60_000);
 const shot = (name) => win.screenshot({ path: path.join(shots, `${name}.png`) });
 const errors = [];
 win.on("pageerror", (e) => errors.push(e.message));
@@ -74,7 +93,10 @@ await win.getByPlaceholder("예: qwen3:4b").fill("qwen3:4b");
 await win.getByRole("button", { name: "연결 시험" }).click();
 await win.getByText(/연결 성공/).waitFor();
 await win.getByRole("button", { name: "저장", exact: true }).click();
-await win.getByText("저장했습니다.").waitFor();
+await win.getByText(/저장했습니다/).waitFor();
+// 저장하면 내장 OpenClaw가 새 설정으로 시작된다.
+await win.getByText("실행 엔진 준비됨").first().waitFor({ timeout: 180_000 });
+await win.getByText(/127\.0\.0\.1:\d+ \(이 PC 안에서만 접속\)/).waitFor();
 await shot("02-settings-model-server");
 
 // 업무 맡기기: 샘플 자료로 대조
@@ -116,6 +138,25 @@ await shot("08-home");
 
 await app.close();
 server.close();
+// AI 다듬기는 일손이 모델 서버를 직접 부르지 않고 내장 OpenClaw를 거쳐야 한다.
+const chats = modelRequests.filter((r) => r.url === "/v1/chat/completions");
+if (chats.length === 0 || chats.some((r) => r.model !== "qwen3:4b" || !r.viaOpenClaw)) {
+  console.error("모델 서버 요청이 예상과 다릅니다:", modelRequests);
+  process.exit(1);
+}
+console.log(`모델 서버 요청 ${chats.length}건 모두 내장 OpenClaw 경유(model=qwen3:4b).`);
+
+// 프로그램을 닫으면 엔진 프로세스도 남지 않아야 한다(Linux에서 확인).
+if (process.platform === "linux") {
+  const { execSync } = await import("node:child_process");
+  await new Promise((r) => setTimeout(r, 3000));
+  const left = execSync("ps -eo comm,args").toString().split("\n").filter((l) => l.startsWith("openclaw-gatewa") || (l.includes("openclaw.mjs") && l.includes(userData)));
+  if (left.length) {
+    console.error("종료 후 남은 엔진 프로세스:", left);
+    process.exit(1);
+  }
+  console.log("종료 후 남은 엔진 프로세스 없음.");
+}
 if (errors.length) {
   console.error("화면 오류:", errors);
   process.exit(1);

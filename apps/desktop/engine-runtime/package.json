@@ -1,0 +1,9 @@
+{
+  "name": "ilson-engine-runtime",
+  "private": true,
+  "description": "설치본에 넣는 OpenClaw 실행 엔진. 버전은 engine/openclaw.pin.json과 같아야 한다.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "openclaw": "2026.11.1"
+  }
+}

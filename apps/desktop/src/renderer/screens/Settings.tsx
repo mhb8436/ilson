@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import type { ConnectionTestResult } from "@ilson/service";
+import type { ConnectionTestResult, EngineStatus } from "@ilson/service";
 import type { AppInfo } from "../../shared/api";
 import { api, errorText } from "../api";
+import { ENGINE_STATE_LABEL, formatTime } from "../labels";
 
 export function SettingsScreen({ onSaved }: { onSaved: () => void }) {
   const [baseUrl, setBaseUrl] = useState("");
@@ -16,6 +17,26 @@ export function SettingsScreen({ onSaved }: { onSaved: () => void }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [showNotices, setShowNotices] = useState(false);
+  const [engine, setEngine] = useState<EngineStatus | null>(null);
+
+  useEffect(() => {
+    const load = () => void api.engineStatus().then(setEngine);
+    load();
+    const t = setInterval(load, 2000);
+    return () => clearInterval(t);
+  }, []);
+
+  const restartEngine = async () => {
+    setBusy("engine");
+    setError("");
+    try {
+      setEngine(await api.restartEngine());
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy("");
+    }
+  };
 
   useEffect(() => {
     void api.appInfo().then(setInfo);
@@ -58,7 +79,7 @@ export function SettingsScreen({ onSaved }: { onSaved: () => void }) {
       setHasKey(!!s.model?.hasApiKey);
       setApiKey("");
       setClearKey(false);
-      setNotice("저장했습니다.");
+      setNotice("저장했습니다. 실행 엔진을 새 설정으로 다시 시작합니다.");
       onSaved();
     } catch (e) {
       setError(errorText(e));
@@ -121,6 +142,51 @@ export function SettingsScreen({ onSaved }: { onSaved: () => void }) {
             : `연결 실패: ${test.error}`}
         </div>
       )}
+
+      <h2>실행 엔진 (OpenClaw)</h2>
+      <p className="muted">
+        프로그램에 들어 있는 OpenClaw를 이 PC 안에서만(127.0.0.1) 실행합니다. AI 다듬기는 이 엔진을 거쳐 위의 기관 GPU 서버로
+        갑니다. 엔진은 파일, 명령 실행 같은 도구를 쓰지 않도록 설정되어 있습니다.
+      </p>
+      {engine && (
+        <table className="grid kv">
+          <tbody>
+            <tr>
+              <th>상태</th>
+              <td className={engine.state === "ready" ? "check ok" : engine.state === "error" ? "check fail" : ""}>
+                {ENGINE_STATE_LABEL[engine.state]}
+              </td>
+            </tr>
+            <tr>
+              <th>버전</th>
+              <td>OpenClaw {engine.version}</td>
+            </tr>
+            <tr>
+              <th>주소</th>
+              <td>{engine.port ? `127.0.0.1:${engine.port} (이 PC 안에서만 접속)` : "-"}</td>
+            </tr>
+            <tr>
+              <th>시작 시각</th>
+              <td>{engine.startedAt ? formatTime(engine.startedAt) : "-"}</td>
+            </tr>
+            {engine.message && (
+              <tr>
+                <th>내용</th>
+                <td>{engine.message}</td>
+              </tr>
+            )}
+            <tr>
+              <th>기록 파일</th>
+              <td>{engine.logFile}</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+      <div className="actions">
+        <button disabled={!!busy || engine?.state === "not_configured"} onClick={restartEngine}>
+          {busy === "engine" ? "다시 시작하는 중..." : "실행 엔진 다시 시작"}
+        </button>
+      </div>
 
       <h2>프로그램 정보</h2>
       {info && (

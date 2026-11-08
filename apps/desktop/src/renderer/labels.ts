@@ -1,4 +1,4 @@
-import type { DeptSummary, DraftStatus, FindingType, JobStatus, LedgerAction } from "@ilson/service";
+import type { DeptSummary, DraftStatus, EngineState, FindingType, JobStatus, LedgerAction } from "@ilson/service";
 
 export const FINDING_LABEL: Record<FindingType, string> = {
   submission_missing: "자료 없음",
@@ -48,3 +48,11 @@ export function formatTime(iso: string): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+export const ENGINE_STATE_LABEL: Record<EngineState, string> = {
+  not_configured: "모델 서버 미설정",
+  starting: "실행 엔진 시작 중",
+  ready: "실행 엔진 준비됨",
+  error: "실행 엔진 오류",
+  stopped: "실행 엔진 중지",
+};

@@ -14,6 +14,7 @@ import {
   type SourceRef,
   type TemplateConfig,
 } from "@ilson/collate";
+import type { EngineEndpoint, EngineModelSettings } from "./engine.js";
 import { Ledger, sha256 } from "./ledger.js";
 import {
   describeError,
@@ -41,7 +42,15 @@ export interface SecretBox {
   decrypt(sealed: string): string;
 }
 
+/** 문안 다듬기를 OpenClaw 실행 엔진으로 보낼 때 쓰는 연결. */
+export interface EngineLink {
+  version: string;
+  endpoint(): Promise<EngineEndpoint>;
+}
+
 export interface ServiceOptions {
+  /** 있으면 AI 다듬기를 OpenClaw 게이트웨이로 보낸다(설치본 기본). 없으면 기관 모델 서버를 직접 부른다(시험용). */
+  engine?: EngineLink;
   dataDir: string;
   actor: string;
   secretBox: SecretBox;
@@ -167,6 +176,35 @@ export class IlsonService {
       { baseUrl: s.model.baseUrl, model: s.model.model, timeoutMs: s.model.timeoutMs, ...(apiKey ? { apiKey } : {}) },
       this.opts.fetchImpl,
     );
+  }
+
+  /** 실행 엔진 설정에 쓸 모델 서버 정보와 복호화한 API 키. */
+  async engineModelSettings(): Promise<{ model: EngineModelSettings | null; apiKey?: string }> {
+    const s = await this.loadStored();
+    if (!s.model) return { model: null };
+    const apiKey = s.model.apiKeySealed ? this.opts.secretBox.decrypt(s.model.apiKeySealed) : undefined;
+    return {
+      model: { baseUrl: s.model.baseUrl, model: s.model.model, timeoutMs: s.model.timeoutMs, hasApiKey: !!apiKey },
+      ...(apiKey ? { apiKey } : {}),
+    };
+  }
+
+  /** AI 다듬기에 쓸 연결. 실행 엔진이 있으면 엔진(OpenClaw)으로, 없으면 기관 모델 서버로 바로 간다. */
+  private async rewriteClient(): Promise<{ client: ModelClient; route: string; model: string }> {
+    const s = await this.loadStored();
+    if (!s.model) throw new Error("모델 서버가 설정되지 않았습니다. 설정 화면에서 기관 GPU 서버 주소를 입력하십시오.");
+    if (this.opts.engine) {
+      const ep = await this.opts.engine.endpoint();
+      return {
+        client: new ModelClient(
+          { baseUrl: ep.baseUrl, model: "openclaw/default", apiKey: ep.token, timeoutMs: s.model.timeoutMs + 30_000 },
+          this.opts.fetchImpl,
+        ),
+        route: `openclaw ${this.opts.engine.version}`,
+        model: s.model.model,
+      };
+    }
+    return { client: await this.modelClient(), route: "direct", model: s.model.model };
   }
 
   /** 저장 전 값으로도 시험할 수 있게 override를 받는다. */
@@ -337,7 +375,7 @@ export class IlsonService {
     const draft = job.drafts.find((d) => d.dept === dept);
     if (!draft) throw new Error(`보완 요청 초안이 없습니다: ${dept}`);
     this.assertPending(draft);
-    const client = await this.modelClient();
+    const { client, route, model } = await this.rewriteClient();
     const result = await client.chat([
       {
         role: "system",
@@ -347,7 +385,7 @@ export class IlsonService {
     ]);
     const check = checkMentions(draft.mustMention, result.text);
     const updated = await this.updateDraft(jobId, dept, (d) => {
-      d.ai = { text: result.text, model: result.model, at: this.now().toISOString(), check };
+      d.ai = { text: result.text, model, at: this.now().toISOString(), check };
       if (check.ok) {
         d.text = result.text;
         d.textCheck = check;
@@ -359,7 +397,8 @@ export class IlsonService {
       jobId,
       dept,
       detail: {
-        model: result.model,
+        model,
+        route,
         latencyMs: result.latencyMs,
         promptSha256: sha256(draft.rewritePrompt),
         outputSha256: sha256(result.text),

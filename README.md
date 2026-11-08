@@ -7,23 +7,26 @@
 
 ## 담당자 PC에 필요한 것
 
-없다. 설치 파일(`Ilson-Setup-*.exe`) 하나를 실행하거나 무설치 실행 파일(`Ilson-Portable-*.exe`)을 바로 실행하면 된다.
+없다. 설치 파일(`Ilson-Setup-*.exe`) 하나를 실행하면 된다.
 
-- 실행 환경(Chromium, Node.js)은 실행 파일 안에 들어 있다. Node.js, Python, .NET, 엑셀을 따로 설치하지 않는다.
+- 실행 환경(Chromium, Node.js)과 실행 엔진 OpenClaw 2026.11.1이 설치 파일 안에 들어 있다. Node.js, Python, .NET, 엑셀, OpenClaw를 따로 설치하지 않는다.
+- 일손이 시작될 때 OpenClaw를 이 PC 안(127.0.0.1)에서만 함께 띄우고, 닫을 때 같이 끈다. 상태는 설정 화면의 "실행 엔진"에서 본다.
 - XLSX와 CSV는 프로그램이 직접 읽는다. 엑셀은 "원본 파일 열기"를 누를 때만 쓰인다(없으면 그 버튼만 동작하지 않는다).
 - 관리자 권한 없이 사용자 폴더(`%LOCALAPPDATA%\Programs\Ilson`)에 설치된다. 데이터는 `%APPDATA%\Ilson\data`에 저장된다.
-- 대조, 기본 문안, 확정, 업무대장은 네트워크 없이 동작한다. "AI 다듬기"만 기관 GPU 서버(정보화 부서가 운영) 주소로 연결한다.
+- 대조, 기본 문안, 확정, 업무대장은 네트워크 없이 동작한다. "AI 다듬기"만 내장 OpenClaw를 거쳐 기관 GPU 서버(정보화 부서가 운영)로 연결한다.
+- 설치 크기 약 820MB, 실행 엔진 메모리 약 1.1GB.
 - 지원 OS: Windows 10/11 64비트.
 
-CI(`desktop-windows`)는 매번 설치 파일을 무인 설치한 뒤, 시스템 PATH만 남긴 환경에서 설치된 실행 파일로 샘플 업무 한 건을 끝까지 처리해 이 조건을 확인한다.
+CI(`desktop-windows`)는 매번 설치 파일을 무인 설치한 뒤, 시스템 PATH만 남긴 환경에서 설치된 실행 파일로 샘플 업무 한 건을 끝까지 처리한다. 이때 AI 다듬기 요청이 내장 OpenClaw를 거쳐 모델 서버에 도착하는지도 확인한다.
 
 ## 구성
 
 | 경로 | 내용 | 상태 |
 | --- | --- | --- |
-| `apps/desktop/` | Windows 데스크톱 앱(Electron). 설치 파일(`Ilson-Setup-*.exe`)과 무설치 실행 파일(`Ilson-Portable-*.exe`) | 0.1.0 |
+| `apps/desktop/` | Windows 데스크톱 앱(Electron). 설치 파일(`Ilson-Setup-*.exe`) | 0.1.0 |
+| `apps/desktop/engine-runtime/` | 설치본에 넣는 OpenClaw(lockfile 고정) | 2026.11.1 |
 | `packages/service/` | 업무 실행, 검토함, 업무대장(해시 사슬), 기관 모델 서버 연결 | 0.1.0 |
-| `engine/` | OpenClaw 실행 엔진 버전 고정 정보 (`openclaw.pin.json`). 포크하지 않고 공개 릴리스를 그대로 쓴다. | 2026.11.1 고정, 앱 내장은 예정 |
+| `engine/` | OpenClaw 실행 엔진 버전 고정 정보 (`openclaw.pin.json`). 포크하지 않고 공개 릴리스를 그대로 쓴다. | 2026.11.1 고정, 설치본 내장 |
 | `plugins/ilson-collate/` | 주간보고 대조 엔진. 제출 명단, 지난주 확정본, 이번 주 파일을 결정적 코드로 대조하고 부서별 보완 요청 초안을 만든다. | 0.1.0 |
 | `fixtures/weekly-report/` | 가상 시험 자료와 사람이 작성한 정답표 (`expected.json`) | 2026-W45 |
 | `security/` | 차단망 설치, 프롬프트 주입, 권한 회수 시험 | 예정 |
@@ -40,7 +43,11 @@ pnpm test
 pnpm build
 ```
 
-데스크톱 앱 실행(개발):
+데스크톱 앱 실행(개발). 내장 엔진 설치에는 Node 24 이상이 필요하다:
+
+```bash
+pnpm --filter @ilson/desktop engine:install
+```
 
 ```bash
 pnpm --filter @ilson/desktop start

@@ -9,6 +9,8 @@
 
 ## OpenClaw
 - 포크하지 않는다. 버전은 `engine/openclaw.pin.json`에 고정하고, 크래프틱 기능은 플러그인과 별도 앱으로 구현한다.
+- 설치본에 내장한다(`apps/desktop/engine-runtime`, lockfile 고정). 버전을 바꿀 때는 핀 파일과 engine-runtime을 함께 바꾼다.
+- 엔진 설정은 `packages/service/src/engine.ts`의 `buildEngineConfig` 한 곳에서 만든다. 127.0.0.1, 토큰, 도구 없음, 외부 카탈로그 차단을 유지한다.
 - 버전을 올릴 때는 회귀 시험과 보안 시험을 다시 수행하고 핀 파일의 커밋 해시를 함께 갱신한다.
 
 ## 배포 형태

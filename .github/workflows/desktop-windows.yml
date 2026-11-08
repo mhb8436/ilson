@@ -12,16 +12,17 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # pnpm 버전은 package.json의 packageManager를 따른다.
       - uses: pnpm/action-setup@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 22
+          # 내장 OpenClaw 설치에 Node 24가 필요하다(실행 시에는 Electron 내장 Node를 쓴다).
+          node-version: 24
           cache: pnpm
 
       - name: Install
@@ -34,12 +35,13 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build installer and portable exe
+      - name: Build installer (with bundled OpenClaw)
         working-directory: apps/desktop
         run: pnpm dist:win
 
       # 설치 파일을 무인 설치(사용자 단위)하고, 설치된 실행 파일을 시스템 PATH만 있는 환경에서 실행해
       # 샘플 업무 한 건을 끝까지 처리한다. 앱이 PC의 Node 등 다른 프로그램에 기대면 여기서 실패한다.
+      # AI 다듬기가 내장 OpenClaw를 거쳐 모델 서버로 가는지도 함께 확인한다.
       - name: Install with setup exe and run end-to-end check
         working-directory: apps/desktop
         shell: pwsh
@@ -53,17 +55,16 @@ jobs:
           node e2e/smoke.mjs e2e-shots
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ilson-windows-x64
           path: |
             apps/desktop/release/Ilson-Setup-*.exe
-            apps/desktop/release/Ilson-Portable-*.exe
           if-no-files-found: error
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-screenshots-windows
           path: apps/desktop/e2e-shots

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, safeStorage, session, shell } from "electron";
-import { IlsonService, type SecretBox } from "@ilson/service";
+import { EngineManager, IlsonService, type SecretBox } from "@ilson/service";
 import { API_METHODS, type AppInfo, type IlsonApi, type IpcResult } from "../shared/api.js";
 
 // 시험 자동화에서 데이터 폴더를 따로 쓰기 위한 설정. 설치본 사용자는 쓰지 않는다.
@@ -30,7 +30,31 @@ function resourcePath(...parts: string[]): string {
 }
 
 let service: IlsonService;
+let engine: EngineManager;
 let win: BrowserWindow | null = null;
+
+/** 설치본에 넣은 OpenClaw 위치. 개발 중에는 apps/desktop/engine-runtime에 설치한 것을 쓴다. */
+function enginePackageDir(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "engine", "node_modules", "openclaw")
+    : path.join(__dirname, "..", "engine-runtime", "node_modules", "openclaw");
+}
+
+function engineVersion(dir: string): string {
+  try {
+    return (JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as { version: string }).version;
+  } catch {
+    return "설치되지 않음";
+  }
+}
+
+/** 저장된 모델 서버 설정으로 실행 엔진을 (다시) 띄운다. 창은 기다리지 않는다. */
+function restartEngineInBackground(): void {
+  void service
+    .engineModelSettings()
+    .then(({ model, apiKey }) => engine.restart(model, apiKey))
+    .catch(() => undefined);
+}
 
 function handlers(): IlsonApi {
   return {
@@ -46,7 +70,16 @@ function handlers(): IlsonApi {
       };
     },
     getSettings: () => service.getSettings(),
-    saveModelSettings: (input) => service.saveModelSettings(input),
+    async saveModelSettings(input) {
+      const saved = await service.saveModelSettings(input);
+      restartEngineInBackground();
+      return saved;
+    },
+    engineStatus: async () => engine.getStatus(),
+    async restartEngine() {
+      const { model, apiKey } = await service.engineModelSettings();
+      return engine.restart(model, apiKey);
+    },
     saveDefaults: (d) => service.saveDefaults(d),
     testModel: (input) => service.testModel(input),
     async pickFile(opts) {
@@ -136,15 +169,37 @@ app.on("second-instance", () => {
 
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
+  const packageDir = enginePackageDir();
+  engine = new EngineManager({
+    packageDir,
+    version: engineVersion(packageDir),
+    dataDir: path.join(app.getPath("userData"), "engine"),
+    // 별도 Node를 설치하지 않고 이 실행 파일을 Node로 쓴다.
+    nodeExecPath: process.execPath,
+    electronAsNode: true,
+  });
   service = new IlsonService({
     dataDir: path.join(app.getPath("userData"), "data"),
     actor: os.userInfo().username,
     secretBox,
+    engine: { version: engine.getStatus().version, endpoint: () => engine.endpoint() },
   });
   await service.init();
   lockDownNetwork();
   registerIpc();
   await createWindow();
+  restartEngineInBackground();
 });
 
 app.on("window-all-closed", () => app.quit());
+
+// 종료할 때 엔진과 하위 프로세스를 먼저 끈다.
+let engineStopped = false;
+app.on("before-quit", (e) => {
+  if (engineStopped || !engine) return;
+  e.preventDefault();
+  void engine.stop().finally(() => {
+    engineStopped = true;
+    app.quit();
+  });
+});
